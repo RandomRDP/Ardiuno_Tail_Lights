@@ -34,7 +34,7 @@ class TailLight{
     void TailLight::LoadEEProm(uint32_t* address);
     void TailLight::SaveEEProm(uint32_t* address);
     
-    void TailLight::Set_Func();
+    void TailLight::Set_Ani();
 
     void TailLight::Blank_();
     void TailLight::CenterToOutside ();

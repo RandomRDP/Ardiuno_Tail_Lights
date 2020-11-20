@@ -24,7 +24,7 @@ void TailLight::Fin_Ani(){
     Ani.eyesize = 10;
   }
   t = 0;
-  Set_Func();
+  Set_Ani();
 }
 
 
@@ -114,7 +114,7 @@ void TailLight::SaveEEProm(uint32_t * address){
   }
 }
 
-void TailLight::Set_Func(){
+void TailLight::Set_Ani(){
   switch (Ani.ani){
     case 0: 
       Ani_Ptr = &CenterToOutside;

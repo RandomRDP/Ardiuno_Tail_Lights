@@ -90,8 +90,8 @@ void setup() {
   Right.Ani.speed = Right.Ans[0].speed;
   Right.Ani.eyesize = Right.Ans[0].eyesize;
 
-  Left.Set_Func();
-  Right.Set_Func();
+  Left.Set_Ani();
+  Right.Set_Ani();
   #ifdef DEBUG
   Serial.println("Left Animations");
   for (int i = 0; i < TOTAL_ANI; i++){
@@ -155,8 +155,8 @@ void CAN_Task(){
           case 0x02: // Trigger
             Left.Ani = Left.Ans[25];
             Right.Ani = Right.Ans[25];
-            Left.Set_Func();
-            Right.Set_Func();
+            Left.Set_Ani();
+            Right.Set_Ani();
             break;
           case 0x03: //Update Can Ids
             break;            
@@ -245,97 +245,97 @@ void loop() {
 }
 
 void set_default(){
+
+  for (int i = 0; i < TOTAL_ANI; i++){
+    Left.Ans[i].ani = 255;
+    Left.Ans[i].before = CRGB::Black;
+    Left.Ans[i].after  = CRGB::Red;
+    Left.Ans[i].speed = 2;
+    Left.Ans[i].eyesize = 10;
+
+    Right.Ans[i].ani = 255;
+    Right.Ans[i].before = CRGB::Black;
+    Right.Ans[i].after  = CRGB::Red;
+    Right.Ans[i].speed = 2;
+    Right.Ans[i].eyesize = 10;
+  }
   
-    for (int i = 0; i < TOTAL_ANI; i++){
-      Left.Ans[i].ani = 255;
-      Left.Ans[i].before = CRGB::Black;
-      Left.Ans[i].after  = CRGB::Red;
-      Left.Ans[i].speed = 2;
-      Left.Ans[i].eyesize = 10;
+  Left.Ans[0].ani = 2;
+  Left.Ans[0].before = CRGB::Black;
+  Left.Ans[0].after  = CRGB(0x3F,0x00,0x00);
+  Left.Ans[0].speed = 2;
+  Left.Ans[0].eyesize = 10;
 
-      Right.Ans[i].ani = 255;
-      Right.Ans[i].before = CRGB::Black;
-      Right.Ans[i].after  = CRGB::Red;
-      Right.Ans[i].speed = 2;
-      Right.Ans[i].eyesize = 10;
-    }
-    
-    Left.Ans[0].ani = 2;
-    Left.Ans[0].before = CRGB::Black;
-    Left.Ans[0].after  = CRGB(0x3F,0x00,0x00);
-    Left.Ans[0].speed = 2;
-    Left.Ans[0].eyesize = 10;
+  Left.Ans[1].ani = 3;
+  Left.Ans[1].before = CRGB::Black;
+  Left.Ans[1].after  = CRGB(0x3F,0x00,0x00);
+  Left.Ans[1].speed = 2;
+  Left.Ans[1].eyesize = 10;
 
-    Left.Ans[1].ani = 3;
-    Left.Ans[1].before = CRGB::Black;
-    Left.Ans[1].after  = CRGB(0x3F,0x00,0x00);
-    Left.Ans[1].speed = 2;
-    Left.Ans[1].eyesize = 10;
+  Left.Ans[2].ani = 5;
+  Left.Ans[2].before = CRGB::Black;
+  Left.Ans[2].after  = CRGB(0x3F,0x00,0x00);
+  Left.Ans[2].speed = 2;
+  Left.Ans[2].eyesize = 10;
 
-    Left.Ans[2].ani = 5;
-    Left.Ans[2].before = CRGB::Black;
-    Left.Ans[2].after  = CRGB(0x3F,0x00,0x00);
-    Left.Ans[2].speed = 2;
-    Left.Ans[2].eyesize = 10;
+  Left.Ans[3].ani = 6;
+  Left.Ans[3].before = CRGB(0x3F,0x00,0x00);
+  Left.Ans[3].after  = CRGB::Red;
+  Left.Ans[3].speed = 2;
+  Left.Ans[3].eyesize = 10;
 
-    Left.Ans[3].ani = 6;
-    Left.Ans[3].before = CRGB(0x3F,0x00,0x00);
-    Left.Ans[3].after  = CRGB::Red;
-    Left.Ans[3].speed = 2;
-    Left.Ans[3].eyesize = 10;
+  Left.Ans[4].ani = 4;
+  Left.Ans[4].before = CRGB::Red;
+  Left.Ans[4].after  = CRGB(0x3F,0x00,0x00);
+  Left.Ans[4].speed = 2;
+  Left.Ans[4].eyesize = 10;
 
-    Left.Ans[4].ani = 4;
-    Left.Ans[4].before = CRGB::Red;
-    Left.Ans[4].after  = CRGB(0x3F,0x00,0x00);
-    Left.Ans[4].speed = 2;
-    Left.Ans[4].eyesize = 10;
+  Left.Ans[5].ani = 8;
+  Left.Ans[5].before = CRGB::Black;
+  Left.Ans[5].after  = CRGB(0x3F,0x00,0x00);
+  Left.Ans[5].speed = 2;
+  Left.Ans[5].eyesize = 10;
 
-    Left.Ans[5].ani = 8;
-    Left.Ans[5].before = CRGB::Black;
-    Left.Ans[5].after  = CRGB(0x3F,0x00,0x00);
-    Left.Ans[5].speed = 2;
-    Left.Ans[5].eyesize = 10;
+  Right.Ans[0].ani = 2;
+  Right.Ans[0].before = CRGB::Black;
+  Right.Ans[0].after  = CRGB(0x3F,0x00,0x00);
+  Right.Ans[0].speed = 2;
+  Right.Ans[0].eyesize = 10;
 
-    Right.Ans[0].ani = 2;
-    Right.Ans[0].before = CRGB::Black;
-    Right.Ans[0].after  = CRGB(0x3F,0x00,0x00);
-    Right.Ans[0].speed = 2;
-    Right.Ans[0].eyesize = 10;
+  Right.Ans[1].ani = 3;
+  Right.Ans[1].before = CRGB::Black;
+  Right.Ans[1].after  = CRGB(0x3F,0x00,0x00);
+  Right.Ans[1].speed = 2;
+  Right.Ans[1].eyesize = 10;
 
-    Right.Ans[1].ani = 3;
-    Right.Ans[1].before = CRGB::Black;
-    Right.Ans[1].after  = CRGB(0x3F,0x00,0x00);
-    Right.Ans[1].speed = 2;
-    Right.Ans[1].eyesize = 10;
+  Right.Ans[2].ani = 5;
+  Right.Ans[2].before = CRGB::Black;
+  Right.Ans[2].after  = CRGB(0x3F,0x00,0x00);
+  Right.Ans[2].speed = 2;
+  Right.Ans[2].eyesize = 10;
 
-    Right.Ans[2].ani = 5;
-    Right.Ans[2].before = CRGB::Black;
-    Right.Ans[2].after  = CRGB(0x3F,0x00,0x00);
-    Right.Ans[2].speed = 2;
-    Right.Ans[2].eyesize = 10;
+  Right.Ans[3].ani = 6;
+  Right.Ans[3].before = CRGB(0x3F,0x00,0x00);
+  Right.Ans[3].after  = CRGB::Red;
+  Right.Ans[3].speed = 2;
+  Right.Ans[3].eyesize = 10;
 
-    Right.Ans[3].ani = 6;
-    Right.Ans[3].before = CRGB(0x3F,0x00,0x00);
-    Right.Ans[3].after  = CRGB::Red;
-    Right.Ans[3].speed = 2;
-    Right.Ans[3].eyesize = 10;
+  Right.Ans[4].ani = 4;
+  Right.Ans[4].before = CRGB::Red;
+  Right.Ans[4].after  = CRGB(0xF,0x00,0x00);
+  Right.Ans[4].speed = 2;
+  Right.Ans[4].eyesize = 10;
 
-    Right.Ans[4].ani = 4;
-    Right.Ans[4].before = CRGB::Red;
-    Right.Ans[4].after  = CRGB(0xF,0x00,0x00);
-    Right.Ans[4].speed = 2;
-    Right.Ans[4].eyesize = 10;
+  Right.Ans[5].ani = 8;
+  Right.Ans[5].before = CRGB::Black;
+  Right.Ans[5].after  = CRGB(0xF,0x00,0x00);
+  Right.Ans[5].speed = 2;
+  Right.Ans[5].eyesize = 10;    
 
-    Right.Ans[5].ani = 8;
-    Right.Ans[5].before = CRGB::Black;
-    Right.Ans[5].after  = CRGB(0xF,0x00,0x00);
-    Right.Ans[5].speed = 2;
-    Right.Ans[5].eyesize = 10;    
-
-    BrakePressure.ID = 133;
-    ThrottlePos.ID = 512;
-    RPM.ID = 513;
-    SteeringAngle.ID = 129;
+  BrakePressure.ID = 133;
+  ThrottlePos.ID = 512;
+  RPM.ID = 513;
+  SteeringAngle.ID = 129;
 
 }
 
