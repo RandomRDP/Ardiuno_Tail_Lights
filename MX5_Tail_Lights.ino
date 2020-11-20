@@ -28,8 +28,9 @@ struct can_frame canMsg;
 bool HS_CAN_MSG = false;
 uint32_t CAN_ID;
 CanSignal ThrottlePos;
-CanSignal BrakePos;
+CanSignal BrakePressure;
 CanSignal RPM;
+CanSignal SteeringAngle;
 
 // Opto 
 uint8_t lights = 0;
@@ -109,9 +110,10 @@ void setup() {
   HS_CAN.setFilterMask(MCP2515::MASK0 ,false ,0x07FF);
   HS_CAN.setFilterMask(MCP2515::MASK1 ,false ,0x07FF);
   HS_CAN.setFilter(MCP2515::RXF0 ,false, CAN_ID);
-  HS_CAN.setFilter(MCP2515::RXF1 ,false, BrakePos.ID);
-  HS_CAN.setFilter(MCP2515::RXF2 ,false, ThrottlePos.ID);
-  HS_CAN.setFilter(MCP2515::RXF3 ,false, RPM.ID);
+  HS_CAN.setFilter(MCP2515::RXF1 ,false, BrakePressure.ID);
+//  HS_CAN.setFilter(MCP2515::RXF2 ,false, ThrottlePos.ID);
+//  HS_CAN.setFilter(MCP2515::RXF3 ,false, RPM.ID);
+//  HS_CAN.setFilter(MCP2515::RXF4 ,false, SteeringAngle.ID);
   HS_CAN.setNormalMode();                  //Sets CAN at normal mode
   attachInterrupt(digitalPinToInterrupt(CAN_INT), HS_CAN_ISR,FALLING);
   Serial.println("Fin Setup");
@@ -159,12 +161,14 @@ void CAN_Task(){
           case 0x03: //Update Can Ids
             break;            
         }
-      } else if (canMsg.can_id == BrakePos.ID) {
-        // BrakePos.signal = 0;
+      } else if (canMsg.can_id == BrakePressure.ID) {
+        BrakePressure.signal.u = (((canMsg.data[0] * 256) + canMsg.data[1]) * 0.15015) + 15;
       } else if (canMsg.can_id == ThrottlePos.ID) {
-        // ThrottlePos.signal = 0;
+        ThrottlePos.signal.u = canMsg.data[7] * 0.5;
       } else if (canMsg.can_id == RPM.ID) {
-        // RPM.signal = 0;
+        RPM.signal.u = ((canMsg.data[0] * 256) + canMsg.data[1]) * 0.25;
+      } else if (canMsg.can_id == SteeringAngle.ID) {
+        SteeringAngle.signal.i = (int)((canMsg.data[2] * 256) + canMsg.data[3]);
       }
     }
   }
@@ -327,6 +331,12 @@ void set_default(){
     Right.Ans[5].after  = CRGB(0xF,0x00,0x00);
     Right.Ans[5].speed = 2;
     Right.Ans[5].eyesize = 10;    
+
+    BrakePressure.ID = 133;
+    ThrottlePos.ID = 512;
+    RPM.ID = 513;
+    SteeringAngle.ID = 129;
+
 }
 
 void HS_CAN_ISR(){
@@ -348,7 +358,7 @@ void save_EEPROM(){
   Left.SaveEEProm(&address);
   Right.SaveEEProm(&address);
   ThrottlePos.SaveEEProm(&address);
-  BrakePos.SaveEEProm(&address);
+  BrakePressure.SaveEEProm(&address);
   RPM.SaveEEProm(&address);
 }
 
@@ -362,14 +372,14 @@ void load_EEPROM(){
   Left.LoadEEProm(&address);
   Right.LoadEEProm(&address);
   ThrottlePos.LoadEEProm(&address);
-  BrakePos.LoadEEProm(&address);
+  BrakePressure.LoadEEProm(&address);
   RPM.LoadEEProm(&address);
 
 }
 
 #ifdef DEBUG
 void printCANSig(){
-  Serial.print(BrakePos.signal_u32);
+  Serial.print(BrakePressure.signal_u32);
   Serial.print(";");
   Serial.print(ThrottlePos.signal_u32);
   Serial.print(";");
