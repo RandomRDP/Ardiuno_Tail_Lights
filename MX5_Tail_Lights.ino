@@ -101,7 +101,7 @@ void setup() {
     printANI(&Right.Ans[i]);  
   }
   #endif
- 
+
   // CAN Setup
   HS_CAN.reset();        
   // ADD FILTER                  
@@ -130,7 +130,7 @@ void CAN_Task(){
     HS_CAN_MSG = false;
     while (HS_CAN.readMessage(&canMsg) == MCP2515::ERROR_OK){ 
       #ifdef DEBUG
-      printCanMsg("HS",&canMsg);
+        printCanMsg("HS",&canMsg);
       #endif
       if (canMsg.can_id == CAN_ID){
         switch(canMsg.data[0]){
@@ -336,7 +336,7 @@ void HS_CAN_ISR(){
 
 void save_EEPROM(){
   #ifdef DEBUG
-  Serial.println("Saving ");
+    Serial.println("Saving ");
   #endif
   uint32_t address = 0;
   uint32_t uint32;
@@ -354,7 +354,7 @@ void save_EEPROM(){
 
 void load_EEPROM(){
   #ifdef DEBUG
-  Serial.println("Loading");
+    Serial.println("Loading");
   #endif
   uint32_t address = 0;
   EEPROM.get(address, CAN_ID);
@@ -366,6 +366,18 @@ void load_EEPROM(){
   RPM.LoadEEProm(&address);
 
 }
+
+#ifdef DEBUG
+void printCANSig(){
+  Serial.print(BrakePos.signal_u32);
+  Serial.print(";");
+  Serial.print(ThrottlePos.signal_u32);
+  Serial.print(";");
+  Serial.print(RPM.signal_u32);
+  Serial.print(";");
+  Serial.println(SteeringAngle.signal_i32);
+}
+#endif
 
 #ifdef DEBUG
 void printANI(ANIMATION * ani){
