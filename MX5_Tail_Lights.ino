@@ -373,11 +373,9 @@ void set_default(){
   ThrottlePos.ID = 512;
   RPM.ID = 513;
   SteeringAngle.ID = 129;
-
 }
 
 void HS_CAN_ISR(){
-  //Serial.println("CAN");
   HS_CAN_MSG = true;
 }
 
