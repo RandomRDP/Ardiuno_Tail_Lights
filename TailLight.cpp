@@ -143,6 +143,9 @@ void TailLight::Set_Func(){
     case 8:
       Ani_Ptr = &EmptyTwo;
       break;
+    case 9:
+      Ani_Ptr = &Full;
+      break;
     default:
       Ani_Ptr = &Blank_;
       break;
@@ -288,6 +291,16 @@ void TailLight::EmptyTwo() {
   }
 
   if ( i < 0) {
+    Fin_Ani();
+  }
+}
+
+void TailLight::Full() {
+  for (int i = 0; i < NUM_LEDS; i++){
+    leds[i] = Ani.after;
+  }
+
+  if ( t > Ani.speed) {
     Fin_Ani();
   }
 }

@@ -46,6 +46,7 @@ class TailLight{
     void TailLight::RightFill ();
     void TailLight::FillTwo ();
     void TailLight::EmptyTwo ();
+    void TailLight::Full ();
 
     void TailLight::Ani_Func ();  
     void (TailLight::*Ani_Ptr)();
