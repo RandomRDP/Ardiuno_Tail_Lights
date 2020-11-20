@@ -15,12 +15,12 @@ class CanSignal{
     uint8_t start;
     uint8_t length;
     
-    union signal {
+    union signal_t {
       uint32_t u;
       int32_t i;
       double d;
       float f;
-    };
+    } signal;
     union offset {
       int32_t i;
       double d;

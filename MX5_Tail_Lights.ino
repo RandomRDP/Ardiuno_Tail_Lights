@@ -379,13 +379,13 @@ void load_EEPROM(){
 
 #ifdef DEBUG
 void printCANSig(){
-  Serial.print(BrakePressure.signal_u32);
+  Serial.print(BrakePressure.signal.u);
   Serial.print(";");
-  Serial.print(ThrottlePos.signal_u32);
+  Serial.print(ThrottlePos.signal.u);
   Serial.print(";");
-  Serial.print(RPM.signal_u32);
+  Serial.print(RPM.signal.u);
   Serial.print(";");
-  Serial.println(SteeringAngle.signal_i32);
+  Serial.println(SteeringAngle.signal.i);
 }
 #endif
 
