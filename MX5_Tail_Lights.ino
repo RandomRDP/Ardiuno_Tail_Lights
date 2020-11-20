@@ -21,6 +21,11 @@ int buttonState;             // the current reading from the input pin
 int lastButtonState = LOW;   // the previous reading from the input pin
 unsigned long lastDebounceTime = 0;  // the last time the output pin was toggled
 unsigned long debounceDelay = 50;    // the debounce time; increase if the output flickers
+unsigned long timePressed = 0;        // millis() when button first pressed
+bool longPress = false;               // has longPress been triggered
+bool xxxlPress = false;               // has xxxlPress been triggered
+#define LONG_PRESS_LEN  1000
+#define XXXL_PRESS_LEN  30000
 
 // CAN bus - MCP2515
 MCP2515 HS_CAN(CAN_CS);        // SPI CS Pin 10             
@@ -223,24 +228,56 @@ void BTN_Task(){
   if ((millis() - lastDebounceTime) > debounceDelay) {
     if (reading != buttonState) {
       buttonState = reading;
-      if (buttonState == HIGH) {
-        CAN_ID = 0;
-        save_EEPROM();
-        Serial.println("BTN Press");
+      if (buttonState == HIGH) {  // Happens once when button first goes high
+        timePressed = millis();
+      } else {                    // Happens once when button first goes low
+        if (not longPress) {
+          short_Press();
+        }
+        longPress = false;
+        xxxlPress = false;
       }
     }
   }
   lastButtonState = reading;
+
+  if (buttonState == HIGH){
+    unsigned long Pressed = millis() - timePressed;
+    if (Pressed > LONG_PRESS_LEN) {
+      if (not longPress) {
+          longPress = true;
+          long_Press();
+      }
+    } 
+    if (Pressed > XXXL_PRESS_LEN){
+      if (not xxxlPress) {
+          xxxlPress = true;
+          xxxl_Press();
+      }
+    }
+  }
 }
 
-TimedAction animationThread = TimedAction(20,Animation_Task);
-TimedAction canThread = TimedAction(10,CAN_Task);
+void short_Press() {
+  Serial.println("shorty");
+}
+
+void long_Press() {
+  Serial.println("longly");
+}
+
+void xxxl_Press() {
+  Serial.println("xxxly");
+}
+
+TimedAction animationThread = TimedAction(10,Animation_Task);
+TimedAction btnThread = TimedAction(5,BTN_Task);
 TimedAction optoThread = TimedAction(50,OPTO_Task);
 
 void loop() {
-  BTN_Task();
+  CAN_Task();
   animationThread.check();
-  canThread.check();
+  btnThread.check();
   optoThread.check();
 }
 
