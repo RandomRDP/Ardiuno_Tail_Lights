@@ -10,20 +10,38 @@ TailLight::TailLight(){
 
 void TailLight::Fin_Ani(){
   if (startup_idx < STARTUP_L){
-    startup_idx++; // = startup_idx + 2;
-    Ani.ani = Ans[startup_idx].ani;
-    Ani.before = Ans[startup_idx].before;
-    Ani.after  = Ans[startup_idx].after;
-    Ani.speed = Ans[startup_idx].speed;
-    Ani.eyesize = Ans[startup_idx].eyesize;
+    startup_idx++; 
+    if (Ans[startup_idx].ani != 255) {
+      Ani.ani = Ans[startup_idx].ani;
+      Ani.before = Ans[startup_idx].before;
+      Ani.after  = Ans[startup_idx].after;
+      Ani.speed = Ans[startup_idx].speed;
+      Ani.eyesize = Ans[startup_idx].eyesize;
+    } else {
+      startup_idx = STARTUP_L;
+      Fin_Ani();
+    }
+    t = 0;
+  } else if (*settings == true) {
+    Ani.ani = Ans[SETTINGS_MENU_ANI].ani;
+    Ani.before = Ans[SETTINGS_MENU_ANI].before;
+    Ani.after  = Ans[SETTINGS_MENU_ANI].after;
+    Ani.speed = Ans[SETTINGS_MENU_ANI].speed;
+    Ani.eyesize = Ans[SETTINGS_MENU_ANI].eyesize;
+  } else if (*brake == true) {
+    Ani.ani = Ans[BRAKE_ANI].ani;
+    Ani.before = Ans[BRAKE_ANI].before;
+    Ani.after  = Ans[BRAKE_ANI].after;
+    Ani.speed = Ans[BRAKE_ANI].speed;
+    Ani.eyesize = Ans[BRAKE_ANI].eyesize;
   } else {
     Ani.ani = 255;
     Ani.before = CRGB::Black;
     Ani.after  = CRGB::Red;
     Ani.speed = 1;
     Ani.eyesize = 10;
-  }
-  t = 0;
+    t = 0;
+  }  
   Set_Ani();
 }
 
@@ -40,7 +58,7 @@ void TailLight::setPixel(int pixel, CRGB colour, CRGB leds[]) {
 }
 
 void TailLight::LoadEEProm(uint32_t * address){
-  for (int i = 0; i < STARTUP_L; i++){
+  for (int i = 0; i < TOTAL_ANI; i++){
     Ans[i].ani = EEPROM.read(*address);
     *address += 1;
     Ans[i].before.r = EEPROM.read(*address);
@@ -65,7 +83,7 @@ void TailLight::LoadEEProm(uint32_t * address){
 void TailLight::SaveEEProm(uint32_t * address){
   uint8_t uint8;
   byte Colour;
-  for (int i = 0; i < STARTUP_L; i++){
+  for (int i = 0; i < TOTAL_ANI; i++){
     EEPROM.get(*address, uint8);
     if (uint8 != Ans[i].ani){
       EEPROM.put(*address, Ans[i].ani);
@@ -144,7 +162,13 @@ void TailLight::Set_Ani(){
       Ani_Ptr = &EmptyTwo;
       break;
     case 9:
-      Ani_Ptr = &Full;
+      Ani_Ptr = &Flash;
+      break;
+    case 10:
+      Ani_Ptr = &Number;
+      break;
+    case 11:
+      Ani_Ptr = &Menu;
       break;
     default:
       Ani_Ptr = &Blank_;
@@ -156,8 +180,19 @@ void TailLight::Ani_Func(){
   for (int i = 0; i < NUM_LEDS; i++){
     leds[i] = Ani.before;
   }
+  
   (this->*Ani_Ptr)();
-  t++;
+  if (startup_idx < STARTUP_L || *settings == true){
+    t++;
+  } else if (*brake == true){
+    t = map(brakePressure->signal.u, brakePressure->min.u, brakePressure->max.u, 0, (NUM_LEDS / 2 ) + 1);
+  }
+}
+ 
+void TailLight::SetMenu(bool *menu){
+  brake = &menu[2];
+  indi = &menu[3];
+  hazard = &menu[4];
 }
 
 void TailLight::Blank_(){
@@ -270,7 +305,7 @@ void TailLight::FillTwo() {
     setPixel(j, Ani.after, leds);
   }
   
-  for (int j = NUM_LEDS; j > NUM_LEDS - i; j--){
+  for (int j = NUM_LEDS - 1; j > NUM_LEDS - i - 1; j--){
     setPixel(j, Ani.after, leds);
   }
 
@@ -286,7 +321,7 @@ void TailLight::EmptyTwo() {
     setPixel(j, Ani.after, leds);
   }
   
-  for (int j = NUM_LEDS; j > NUM_LEDS - i; j--){
+  for (int j = NUM_LEDS - 1; j > NUM_LEDS - i - 1; j--){
     setPixel(j, Ani.after, leds);
   }
 
@@ -295,22 +330,52 @@ void TailLight::EmptyTwo() {
   }
 }
 
-void TailLight::Full() {
+void TailLight::Flash() {
   for (int i = 0; i < NUM_LEDS; i++){
     leds[i] = Ani.after;
   }
-
-  if ( t > Ani.speed) {
+  if ( t > Ani.speed ) {
     Fin_Ani();
+    t = 0;
   }
 }
+
+void TailLight::Number() {
+  uint8_t i = 0;
+  for (uint8_t j = 0; j < Ani.speed; j++){
+    for (uint8_t k = 0; k < Ani.eyesize; k++){
+      setPixel(i, Ani.after, leds);
+      i++;     
+    }
+    i += Ani.eyesize;
+  }
+  Fin_Ani();             
+}
+
+void TailLight::Menu() {
+  uint8_t i = 0;
+  CRGB colour = CRGB(((t / Ani.speed) % 2) * 255,0,0);
   
+  if ((t / Ani.speed) == 2){
+    t = 0; 
+  }
+  
+  for (uint8_t j = 0; j < 5; j++){
+    for (uint8_t k = 0; k < NUM_LEDS/9; k++){
+      setPixel(i, Ani.after, leds);
+      i++;     
+    }
+    i += (NUM_LEDS/9);
+  }
 
+  for (uint8_t k = Ani.eyesize * 2 * (NUM_LEDS/9); k < (Ani.eyesize * 2 * (NUM_LEDS/9)) + (NUM_LEDS/9); k++){
+    setPixel(k, colour, leds);
+    i++;     
+  } 
 
-
-
-
-
+  Fin_Ani();             
+}
+  
 
 //void TailLight::FillRight_t(byte red, byte green, byte blue, int EyeSize, int * tie, CRGB leds[], bool side) {
 //  int i = NUM_LEDS - *tie;

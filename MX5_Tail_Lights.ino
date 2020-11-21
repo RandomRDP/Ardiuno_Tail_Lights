@@ -1,7 +1,5 @@
-
-// USE PEDAL POSITION AS T VALUE
-
 #define DEBUG
+// #define FULL_CAN
 
 #include "Arduino.h"
 #include <EEPROM.h>
@@ -32,13 +30,23 @@ MCP2515 HS_CAN(CAN_CS);        // SPI CS Pin 10
 struct can_frame canMsg; 
 bool HS_CAN_MSG = false;
 uint32_t CAN_ID;
-CanSignal ThrottlePos;
 CanSignal BrakePressure;
-CanSignal RPM;
-CanSignal SteeringAngle;
+bool BrakeSwitch;
+#ifdef FULL_CAN
+  CanSignal ThrottlePos;
+  CanSignal RPM;
+  CanSignal SteeringAngle;
+#endif
 
 // Opto 
 uint8_t lights = 0;
+
+// Settings Menu
+#define NUM_MENU_ITEMS 5
+bool SettingsOpen = false;
+uint8_t MenuIDX = 0;  // Menus = None, Start, Brake, Indi, Hazard
+bool MenuItems[] = {false,false,false,false,false};   // Put Me into EEPROM
+
 
 
 void setup() {
@@ -57,8 +65,9 @@ void setup() {
   if (CAN_ID > 0x7FF || CAN_ID == 0){
     Serial.begin(115200);
     Serial.println("Enter CAN ID");
-    while (Serial.available() == 0) ;  // Wait here until input buffer has a character
-    Serial.parseInt();
+//    while (Serial.available() == 0) ;  // Wait here until input buffer has a character
+//    Serial.parseInt();
+    CAN_ID = 2000;
     Serial.print("ID = "); Serial.println(CAN_ID, DEC);
     set_default();
 
@@ -83,29 +92,49 @@ void setup() {
   FastLED.addLeds<WS2812, RIGHT_LED_PIN, GRB>(Right.leds, NUM_LEDS); //WS2812 
   FastLED.setBrightness(63);
 
-  Left.Ani.ani = Left.Ans[0].ani;
-  Left.Ani.before = Left.Ans[0].before;
-  Left.Ani.after  = Left.Ans[0].after;
-  Left.Ani.speed = Left.Ans[0].speed;
-  Left.Ani.eyesize = Left.Ans[0].eyesize;
+  Left.settings = &SettingsOpen;
+  Left.opto = &lights;
+  Left.brakePressure = &BrakePressure;
+  Left.SetMenu(MenuItems);
+  Right.settings = &SettingsOpen;
+  Right.opto = &lights;
+  Right.brakePressure = &BrakePressure;
+  Right.SetMenu(MenuItems);
 
-  Right.Ani.ani = Right.Ans[0].ani;
-  Right.Ani.before = Right.Ans[0].before;
-  Right.Ani.after  = Right.Ans[0].after;
-  Right.Ani.speed = Right.Ans[0].speed;
-  Right.Ani.eyesize = Right.Ans[0].eyesize;
-
+  Left.Ans[BRAKE_ANI].ani = 7;
+  Left.Ans[BRAKE_ANI].speed = 1;
+  Right.Ans[BRAKE_ANI].ani = 7;
+  Right.Ans[BRAKE_ANI].speed = 1;
+  
+  if (MenuItems[1]){ // if starup enabled
+    Left.Ani.ani = Left.Ans[0].ani;
+    Left.Ani.before = Left.Ans[0].before;
+    Left.Ani.after  = Left.Ans[0].after;
+    Left.Ani.speed = Left.Ans[0].speed;
+    Left.Ani.eyesize = Left.Ans[0].eyesize;
+  
+    Right.Ani.ani = Right.Ans[0].ani;
+    Right.Ani.before = Right.Ans[0].before;
+    Right.Ani.after  = Right.Ans[0].after;
+    Right.Ani.speed = Right.Ans[0].speed;
+    Right.Ani.eyesize = Right.Ans[0].eyesize;
+  } else {
+    Left.startup_idx = STARTUP_L;
+    Right.startup_idx = STARTUP_L;
+    Left.Fin_Ani();
+    Right.Fin_Ani();
+  }
   Left.Set_Ani();
   Right.Set_Ani();
   #ifdef DEBUG
-  Serial.println("Left Animations");
-  for (int i = 0; i < TOTAL_ANI; i++){
-    printANI(&Left.Ans[i]);  
-  }
-  Serial.println("Right Animations");
-  for (int i = 0; i < TOTAL_ANI; i++){
-    printANI(&Right.Ans[i]);  
-  }
+    Serial.println("L          eft Animations");
+    for (int i = 0; i < TOTAL_ANI; i++){
+      printANI(&Left.Ans[i]);  
+    }
+    Serial.println("Right Animations");
+    for (int i = 0; i < TOTAL_ANI; i++){
+      printANI(&Right.Ans[i]);  
+    }
   #endif
 
   // CAN Setup
@@ -115,10 +144,12 @@ void setup() {
   HS_CAN.setFilterMask(MCP2515::MASK0 ,false ,0x07FF);
   HS_CAN.setFilterMask(MCP2515::MASK1 ,false ,0x07FF);
   HS_CAN.setFilter(MCP2515::RXF0 ,false, CAN_ID);
-  HS_CAN.setFilter(MCP2515::RXF1 ,false, BrakePressure.ID);
-//  HS_CAN.setFilter(MCP2515::RXF2 ,false, ThrottlePos.ID);
-//  HS_CAN.setFilter(MCP2515::RXF3 ,false, RPM.ID);
-//  HS_CAN.setFilter(MCP2515::RXF4 ,false, SteeringAngle.ID);
+  HS_CAN.setFilter(MCP2515::RXF1 ,false, 133);//BrakePressure.ID);
+  #ifdef FULL_CAN
+    HS_CAN.setFilter(MCP2515::RXF2 ,false, ThrottlePos.ID);
+    HS_CAN.setFilter(MCP2515::RXF3 ,false, RPM.ID);
+    HS_CAN.setFilter(MCP2515::RXF4 ,false, SteeringAngle.ID);
+  #endif
   HS_CAN.setNormalMode();                  //Sets CAN at normal mode
   attachInterrupt(digitalPinToInterrupt(CAN_INT), HS_CAN_ISR,FALLING);
   Serial.println("Fin Setup");
@@ -163,18 +194,32 @@ void CAN_Task(){
             Left.Set_Ani();
             Right.Set_Ani();
             break;
-          case 0x03: //Update Can Ids
+          case 0x03: // Update Settings
+            for (int i = 0; i < NUM_MENU_ITEMS; i++){
+              if (canMsg.data[1] & (1 << i))
+                MenuItems[i] = true;
+              else
+                MenuItems[i] = false;
+            }
+          case 0x04: // Update Can Data
             break;            
         }
       } else if (canMsg.can_id == BrakePressure.ID) {
-        BrakePressure.signal.u = (((canMsg.data[0] * 256) + canMsg.data[1]) * 0.15015) + 15;
-      } else if (canMsg.can_id == ThrottlePos.ID) {
-        ThrottlePos.signal.u = canMsg.data[7] * 0.5;
-      } else if (canMsg.can_id == RPM.ID) {
-        RPM.signal.u = ((canMsg.data[0] * 256) + canMsg.data[1]) * 0.25;
-      } else if (canMsg.can_id == SteeringAngle.ID) {
-        SteeringAngle.signal.i = (int)((canMsg.data[2] * 256) + canMsg.data[3]);
-      }
+        BrakePressure.signal.u = ((canMsg.data[0] * 256) + canMsg.data[1]);
+        if (canMsg.data[2] & 0x40 )
+          BrakeSwitch = true;
+        else 
+          BrakeSwitch = false;
+      } 
+      #ifdef FULL_CAN 
+        else if (canMsg.can_id == ThrottlePos.ID) {
+          ThrottlePos.signal.u = canMsg.data[7] * 0.5;
+        } else if (canMsg.can_id == RPM.ID) {
+          RPM.signal.u = ((canMsg.data[0] * 256) + canMsg.data[1]) * 0.25;
+        } else if (canMsg.can_id == SteeringAngle.ID) {
+          SteeringAngle.signal.i = (int)((canMsg.data[2] * 256) + canMsg.data[3]);
+        }
+      #endif
     }
   }
 }
@@ -259,19 +304,47 @@ void BTN_Task(){
 }
 
 void short_Press() {
-  Serial.println("shorty");
+  Serial.println("shortly");
+  if (SettingsOpen) {
+     MenuIDX++;
+     if (MenuIDX ==  NUM_MENU_ITEMS) {
+      MenuIDX = 0;
+     }
+    Left.Ans[SETTINGS_MENU_ANI].eyesize = MenuIDX;
+    Left.Ans[SETTINGS_MENU_ANI].speed = ((!MenuItems[MenuIDX]) * 16) + 12;
+    Left.t = 0;
+  }
 }
 
 void long_Press() {
   Serial.println("longly");
+  if (SettingsOpen) {
+    if (MenuIDX > 0){
+      MenuItems[MenuIDX] = !MenuItems[MenuIDX];
+      Left.Ans[SETTINGS_MENU_ANI].speed = ((!MenuItems[MenuIDX]) * 16) + 12;
+      Left.t = 0;    
+    } else if (MenuIDX == 0) {
+      SettingsOpen = false;
+      save_EEPROM();
+    }
+  }
 }
 
 void xxxl_Press() {
   Serial.println("xxxly");
+  if (!SettingsOpen) {
+    SettingsOpen = true;
+    Left.Ans[SETTINGS_MENU_ANI].eyesize = MenuIDX;
+    Left.Ans[SETTINGS_MENU_ANI].speed = ((!MenuItems[MenuIDX]) * 16) + 12;
+    Left.Ani = Left.Ans[SETTINGS_FLASH_ANI];
+    Right.Ani = Right.Ans[SETTINGS_FLASH_ANI];
+    Left.Set_Ani();
+    Right.Set_Ani();
+  }
 }
 
-TimedAction animationThread = TimedAction(10,Animation_Task);
-TimedAction btnThread = TimedAction(5,BTN_Task);
+TimedAction animationThread = TimedAction(20,Animation_Task);
+TimedAction btnThread = TimedAction(10,BTN_Task);
 TimedAction optoThread = TimedAction(50,OPTO_Task);
 
 void loop() {
@@ -367,12 +440,40 @@ void set_default(){
   Right.Ans[5].before = CRGB::Black;
   Right.Ans[5].after  = CRGB(0xF,0x00,0x00);
   Right.Ans[5].speed = 2;
-  Right.Ans[5].eyesize = 10;    
+  Right.Ans[5].eyesize = 10; 
+
+  // Brake Can Bus
+  Left.Ans[BRAKE_ANI].ani = 9;
+  Left.Ans[BRAKE_ANI].speed = 1;
+  Right.Ans[BRAKE_ANI].ani = 9;
+  Right.Ans[BRAKE_ANI].speed = 1;
+ 
+  // Menu 
+  Left.Ans[SETTINGS_MENU_ANI].ani = 11;
+  Left.Ans[SETTINGS_MENU_ANI].speed = 16;
+  Left.Ans[SETTINGS_MENU_ANI].eyesize = 0;
+
+  // 1/2 second flash
+  Left.Ans[SETTINGS_FLASH_ANI].ani = 9;
+  Left.Ans[SETTINGS_FLASH_ANI].speed = 50;
+  Left.Ans[SETTINGS_FLASH_ANI].eyesize = 10;
+
+  Right.Ans[SETTINGS_FLASH_ANI].ani = 9;
+  Right.Ans[SETTINGS_FLASH_ANI].speed = 50;
+  Right.Ans[SETTINGS_FLASH_ANI].eyesize = 10;
 
   BrakePressure.ID = 133;
-  ThrottlePos.ID = 512;
-  RPM.ID = 513;
-  SteeringAngle.ID = 129;
+  BrakePressure.min.u = 0x66;
+  BrakePressure.max.u = 0xFF;
+  #ifdef FULL_CAN
+    ThrottlePos.ID = 512;
+    RPM.ID = 513;
+    SteeringAngle.ID = 129;
+  #endif
+
+  for (uint8_t i = 0; i < NUM_MENU_ITEMS; i++){
+    MenuItems[i] = true;
+  }
 }
 
 void HS_CAN_ISR(){
@@ -385,16 +486,27 @@ void save_EEPROM(){
   #endif
   uint32_t address = 0;
   uint32_t uint32;
+  bool boo;
   EEPROM.get(address, uint32);
   if (uint32 != CAN_ID){
     EEPROM.put(address, CAN_ID);
   }
   address += sizeof(CAN_ID);
+  for (uint8_t i = 0; i < NUM_MENU_ITEMS; i++){
+    EEPROM.get(address, boo);
+    if (boo != MenuItems[i]){
+      EEPROM.put(address, MenuItems[i]);  
+    }
+    address += sizeof(boo);
+  }
   Left.SaveEEProm(&address);
   Right.SaveEEProm(&address);
-  ThrottlePos.SaveEEProm(&address);
   BrakePressure.SaveEEProm(&address);
-  RPM.SaveEEProm(&address);
+  #ifdef FULL_CAN
+    ThrottlePos.SaveEEProm(&address);
+    SteeringAngle.SaveEEProm(&address);
+    RPM.SaveEEProm(&address);
+  #endif
 }
 
 void load_EEPROM(){
@@ -404,23 +516,33 @@ void load_EEPROM(){
   uint32_t address = 0;
   EEPROM.get(address, CAN_ID);
   address += sizeof(CAN_ID);
+  for (uint8_t i = 0; i < NUM_MENU_ITEMS; i++){
+    EEPROM.get(address, MenuItems[i]);
+    address += sizeof(MenuItems[i]);
+  }
   Left.LoadEEProm(&address);
   Right.LoadEEProm(&address);
-  ThrottlePos.LoadEEProm(&address);
   BrakePressure.LoadEEProm(&address);
-  RPM.LoadEEProm(&address);
-
+  #ifdef FULL_CAN
+    ThrottlePos.LoadEEProm(&address);
+    SteeringAngle.LoadEEProm(&address);
+    RPM.LoadEEProm(&address);
+  #endif
 }
 
 #ifdef DEBUG
 void printCANSig(){
-  Serial.print(BrakePressure.signal.u);
-  Serial.print(";");
-  Serial.print(ThrottlePos.signal.u);
-  Serial.print(";");
-  Serial.print(RPM.signal.u);
-  Serial.print(";");
-  Serial.println(SteeringAngle.signal.i);
+  #ifdef FULL_CAN
+    Serial.print(BrakePressure.signal.u);
+    Serial.print(";");
+    Serial.print(ThrottlePos.signal.u);
+    Serial.print(";");
+    Serial.print(RPM.signal.u);
+    Serial.print(";");
+    Serial.println(SteeringAngle.signal.i);
+  #else
+    Serial.println(BrakePressure.signal.u);
+  #endif
 }
 #endif
 
