@@ -29,18 +29,18 @@ class CanSignal{
       int32_t i;
       double d;
     };
-    union min {
+    union min_t {
       uint32_t u;
       int32_t i;
       double d;
       float f;
-    };
-    union max {
+    } min;
+    union max_t {
       uint32_t u;
       int32_t i;
       double d;
       float f;
-    };
+    } max;
 
     void CanSignal::DecodeFrame(struct can_frame *frame);
     void CanSignal::UpdateFrame(struct can_frame *frame);
